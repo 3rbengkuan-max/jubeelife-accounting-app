@@ -7,6 +7,8 @@ const links = [
   { href: "/", label: "Dashboard", icon: "▚" },
   { href: "/transactions", label: "Transactions", icon: "⇄" },
   { href: "/invoices", label: "Invoices", icon: "🧾" },
+  { href: "/reconciliation", label: "Reconciliation", icon: "✅" },
+  { href: "/documents", label: "Documents", icon: "📁" },
   { href: "/reports", label: "Reports", icon: "📊" },
   { href: "/properties", label: "Properties & Units", icon: "🏢" },
   { href: "/tenancies", label: "Tenancies", icon: "📄" },

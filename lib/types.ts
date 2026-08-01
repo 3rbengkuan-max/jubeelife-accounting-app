@@ -71,6 +71,7 @@ export interface Transaction {
   gst_amount: number;
   gst_rate: number;
   document_id: string | null;
+  reconciled: boolean;
   created_at: string;
   chart_of_accounts?: Account | null;
   properties?: Property | null;
