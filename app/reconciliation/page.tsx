@@ -3,10 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, StatCard, EmptyState } from "@/components/ui";
 import { MonthPicker } from "@/components/PeriodPicker";
 import { setReconciled, reconcileAll } from "./actions";
+import AutoMatchPanel from "@/components/AutoMatchPanel";
 import { sgd, fmtDate, num, monthFromParam } from "@/lib/format";
 import type { Transaction, DocumentRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+// Allow the AI statement read to run up to 60s (Vercel serverless limit).
+export const maxDuration = 60;
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const docUrl = (path: string) =>
@@ -100,6 +103,15 @@ export default async function ReconciliationPage({
           </ul>
         )}
       </Card>
+
+      <div className="mb-6">
+        <AutoMatchPanel
+          statements={statements}
+          start={start}
+          end={end}
+          monthLabel={label}
+        />
+      </div>
 
       {txns.length === 0 ? (
         <EmptyState
