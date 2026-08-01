@@ -42,3 +42,19 @@ export function monthRange(d = new Date()): { start: string; end: string; label:
 export function currentMonthISO(): string {
   return new Date().toISOString().slice(0, 7); // YYYY-MM
 }
+
+/** Parse a "YYYY-MM" param (or default to current month) into a date range. */
+export function monthFromParam(param?: string): {
+  start: string;
+  end: string;
+  label: string;
+  value: string;
+} {
+  let base = new Date();
+  if (param && /^\d{4}-\d{2}$/.test(param)) {
+    const [y, m] = param.split("-").map(Number);
+    base = new Date(y, m - 1, 1);
+  }
+  const r = monthRange(base);
+  return { ...r, value: `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}` };
+}
