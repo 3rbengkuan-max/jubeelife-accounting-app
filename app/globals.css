@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+:root {
+  --brand: #0d7a5f;
+  --brand-dark: #0a5f4a;
+}
+
+html,
+body {
+  background: #f6f7f9;
+  color: #1b2733;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .print-full {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+}
