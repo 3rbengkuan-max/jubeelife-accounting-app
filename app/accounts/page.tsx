@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
+import DbUnavailable from "@/components/DbUnavailable";
 import type { Account, AccountType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,15 @@ const GROUPS: { type: AccountType; label: string; color: string }[] = [
 
 export default async function AccountsPage() {
   const supabase = await createClient();
-  const { data } = await supabase.from("chart_of_accounts").select("*").order("code");
+  const { data, error } = await supabase.from("chart_of_accounts").select("*").order("code");
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Chart of Accounts" subtitle="Singapore FRS-aligned account codes." />
+        <DbUnavailable detail={error.message} />
+      </div>
+    );
+  }
   const accounts = (data as Account[]) ?? [];
 
   return (

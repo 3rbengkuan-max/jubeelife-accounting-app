@@ -6,6 +6,8 @@ import {
   createUnit,
   deleteUnit,
 } from "./actions";
+import DbUnavailable from "@/components/DbUnavailable";
+import { dbError } from "@/lib/db";
 import type { Property, Unit } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +24,15 @@ export default async function PropertiesPage() {
     supabase.from("properties").select("*").order("name"),
     supabase.from("units").select("*").order("label"),
   ]);
+  const dbErr = dbError(propsRes, unitsRes);
+  if (dbErr) {
+    return (
+      <div>
+        <PageHeader title="Properties & Units" subtitle="Buildings you manage and their units." />
+        <DbUnavailable detail={dbErr} />
+      </div>
+    );
+  }
   const properties = (propsRes.data as Property[]) ?? [];
   const units = (unitsRes.data as Unit[]) ?? [];
 

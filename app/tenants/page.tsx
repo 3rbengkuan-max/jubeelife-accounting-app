@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { createTenant, deleteTenant } from "./actions";
+import DbUnavailable from "@/components/DbUnavailable";
 import { fmtDate } from "@/lib/format";
 import type { Tenant } from "@/lib/types";
 
@@ -12,7 +13,15 @@ const inputCls =
 
 export default async function TenantsPage() {
   const supabase = await createClient();
-  const { data } = await supabase.from("tenants").select("*").order("name");
+  const { data, error } = await supabase.from("tenants").select("*").order("name");
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Tenants" subtitle="People leasing your units." />
+        <DbUnavailable detail={error.message} />
+      </div>
+    );
+  }
   const tenants = (data as Tenant[]) ?? [];
 
   return (

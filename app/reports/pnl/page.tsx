@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card } from "@/components/ui";
 import { MonthPicker } from "@/components/PeriodPicker";
 import PrintButton from "@/components/PrintButton";
+import DbUnavailable from "@/components/DbUnavailable";
 import { getProfitAndLoss } from "@/lib/reports";
 import { sgd, monthFromParam } from "@/lib/format";
 
@@ -16,6 +17,14 @@ export default async function PnLPage({
   const { start, end, label, value } = monthFromParam(month);
   const supabase = await createClient();
   const pnl = await getProfitAndLoss(supabase, start, end);
+  if (pnl.error) {
+    return (
+      <div>
+        <PageHeader title="Profit & Loss" subtitle={`For ${label}`} />
+        <DbUnavailable detail={pnl.error} />
+      </div>
+    );
+  }
   const hasData = pnl.income.length > 0 || pnl.expense.length > 0;
 
   return (

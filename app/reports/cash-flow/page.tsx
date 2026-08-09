@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card } from "@/components/ui";
 import { MonthPicker } from "@/components/PeriodPicker";
 import PrintButton from "@/components/PrintButton";
+import DbUnavailable from "@/components/DbUnavailable";
 import { getCashFlow } from "@/lib/reports";
 import { sgd, monthFromParam } from "@/lib/format";
 
@@ -16,6 +17,14 @@ export default async function CashFlowPage({
   const { start, end, label, value } = monthFromParam(month);
   const supabase = await createClient();
   const cf = await getCashFlow(supabase, start, end);
+  if (cf.error) {
+    return (
+      <div>
+        <PageHeader title="Cash Flow" subtitle={`For ${label}`} />
+        <DbUnavailable detail={cf.error} />
+      </div>
+    );
+  }
   const hasData = cf.inflows.length > 0 || cf.outflows.length > 0;
 
   return (

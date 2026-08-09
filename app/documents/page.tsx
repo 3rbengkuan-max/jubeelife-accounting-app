@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import DocumentUploadForm from "@/components/DocumentUploadForm";
 import { deleteDocument } from "./actions";
+import DbUnavailable from "@/components/DbUnavailable";
 import { fmtDate } from "@/lib/format";
 import type { DocumentRow } from "@/lib/types";
 
@@ -19,10 +20,18 @@ function prettyType(t: string | null) {
 
 export default async function DocumentsPage() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("documents")
     .select("*")
     .order("created_at", { ascending: false });
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Documents" subtitle="Upload monthly bank statements, MCST bills and agreements." />
+        <DbUnavailable detail={error.message} />
+      </div>
+    );
+  }
   const docs = (data as DocumentRow[]) ?? [];
 
   return (

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, StatCard, Badge, LinkButton } from "@/components/ui";
 import { sgd, fmtDate, num, monthRange } from "@/lib/format";
 import type { Transaction, Invoice, Tenancy } from "@/lib/types";
+import DbUnavailable from "@/components/DbUnavailable";
+import { dbError } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,16 @@ export default async function Dashboard() {
       .select("*, units(label), tenants(name)")
       .eq("status", "active"),
   ]);
+
+  const dbErr = dbError(monthTx, recentTx, invoicesRes, tenanciesRes);
+  if (dbErr) {
+    return (
+      <div>
+        <PageHeader title="Dashboard" subtitle={`Overview for ${label}`} />
+        <DbUnavailable detail={dbErr} />
+      </div>
+    );
+  }
 
   const mtx = (monthTx.data as Pick<Transaction, "type" | "amount">[]) ?? [];
   const monthIncome = mtx

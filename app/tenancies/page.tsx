@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge } from "@/components/ui";
 import { createTenancy, deleteTenancy, updateTenancyStatus } from "./actions";
+import DbUnavailable from "@/components/DbUnavailable";
+import { dbError } from "@/lib/db";
 import { sgd, fmtDate, todayISO } from "@/lib/format";
 import type { Tenancy, Unit, Tenant } from "@/lib/types";
 
@@ -20,6 +22,15 @@ export default async function TenanciesPage() {
     supabase.from("units").select("*, properties(name)").order("label"),
     supabase.from("tenants").select("*").order("name"),
   ]);
+  const dbErr = dbError(tenRes, unitsRes, tenantsRes);
+  if (dbErr) {
+    return (
+      <div>
+        <PageHeader title="Tenancies" subtitle="Lease contracts linking a tenant to a unit." />
+        <DbUnavailable detail={dbErr} />
+      </div>
+    );
+  }
   const tenancies = (tenRes.data as unknown as Tenancy[]) ?? [];
   const units = (unitsRes.data as unknown as Unit[]) ?? [];
   const tenants = (tenantsRes.data as Tenant[]) ?? [];

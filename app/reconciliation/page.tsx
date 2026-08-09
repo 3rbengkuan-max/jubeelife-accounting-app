@@ -4,6 +4,8 @@ import { PageHeader, Card, StatCard, EmptyState } from "@/components/ui";
 import { MonthPicker } from "@/components/PeriodPicker";
 import { setReconciled, reconcileAll } from "./actions";
 import AutoMatchPanel from "@/components/AutoMatchPanel";
+import DbUnavailable from "@/components/DbUnavailable";
+import { dbError } from "@/lib/db";
 import { sgd, fmtDate, num, monthFromParam } from "@/lib/format";
 import type { Transaction, DocumentRow } from "@/lib/types";
 
@@ -37,6 +39,16 @@ export default async function ReconciliationPage({
       .eq("doc_type", "bank_statement")
       .order("created_at", { ascending: false }),
   ]);
+
+  const dbErr = dbError(txRes, stmtRes);
+  if (dbErr) {
+    return (
+      <div>
+        <PageHeader title="Bank Reconciliation" subtitle={`For ${label}`} />
+        <DbUnavailable detail={dbErr} />
+      </div>
+    );
+  }
 
   const txns = (txRes.data as unknown as Transaction[]) ?? [];
   const statements = (stmtRes.data as DocumentRow[]) ?? [];

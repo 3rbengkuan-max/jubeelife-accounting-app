@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge, LinkButton } from "@/components/ui";
 import { sgd, fmtDate, num } from "@/lib/format";
 import { updateInvoiceStatus, deleteInvoice } from "./actions";
+import DbUnavailable from "@/components/DbUnavailable";
 import type { Invoice } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +19,18 @@ const NEXT_STATUS: Record<string, { to: string; label: string }[]> = {
 
 export default async function InvoicesPage() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("invoices")
     .select("*, tenants(name)")
     .order("issue_date", { ascending: false });
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Invoices" subtitle="Bill tenants and track what's outstanding." />
+        <DbUnavailable detail={error.message} />
+      </div>
+    );
+  }
   const invoices = (data as unknown as Invoice[]) ?? [];
 
   const outstanding = invoices

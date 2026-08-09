@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card, EmptyState, Badge, LinkButton } from "@/components/ui";
 import { sgd, fmtDate, num } from "@/lib/format";
 import { deleteTransaction } from "./actions";
+import DbUnavailable from "@/components/DbUnavailable";
 import type { Transaction } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,18 @@ export default async function TransactionsPage() {
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
 
+  if (error) {
+    return (
+      <div>
+        <PageHeader
+          title="Transactions"
+          subtitle="Every income and expense recorded, most recent first."
+        />
+        <DbUnavailable detail={error.message} />
+      </div>
+    );
+  }
+
   const txns = (data as unknown as Transaction[]) ?? [];
 
   const totalIncome = txns
@@ -36,12 +49,6 @@ export default async function TransactionsPage() {
         subtitle="Every income and expense recorded, most recent first."
         action={<LinkButton href="/transactions/new">+ New Transaction</LinkButton>}
       />
-
-      {error && (
-        <Card className="mb-4 border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          Couldn&apos;t load transactions: {error.message}
-        </Card>
-      )}
 
       {txns.length === 0 ? (
         <EmptyState

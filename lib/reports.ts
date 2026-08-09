@@ -21,7 +21,7 @@ export async function getProfitAndLoss(
   start: string,
   end: string,
 ) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("transactions")
     .select("amount, gst_amount, type, chart_of_accounts(code,name,type)")
     .gte("date", start)
@@ -45,7 +45,14 @@ export async function getProfitAndLoss(
   const totalIncome = income.reduce((s, l) => s + l.total, 0);
   const totalExpense = expense.reduce((s, l) => s + l.total, 0);
 
-  return { income, expense, totalIncome, totalExpense, net: totalIncome - totalExpense };
+  return {
+    income,
+    expense,
+    totalIncome,
+    totalExpense,
+    net: totalIncome - totalExpense,
+    error: error?.message ?? null,
+  };
 }
 
 /** Cash movements in [start, end] grouped by account (single-entry = cash basis). */
@@ -61,6 +68,7 @@ export async function getCashFlow(
     totalIn: pnl.totalIncome,
     totalOut: pnl.totalExpense,
     netCash: pnl.net,
+    error: pnl.error,
   };
 }
 
@@ -117,5 +125,6 @@ export async function getBalanceSheet(supabase: SupabaseClient, asOf: string) {
     totalAssets,
     totalLiabilities,
     totalEquity: retainedEarnings + ownersEquity,
+    error: txRes.error?.message ?? invRes.error?.message ?? null,
   };
 }

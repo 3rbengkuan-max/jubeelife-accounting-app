@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card } from "@/components/ui";
 import { AsOfPicker } from "@/components/PeriodPicker";
 import PrintButton from "@/components/PrintButton";
+import DbUnavailable from "@/components/DbUnavailable";
 import { getBalanceSheet } from "@/lib/reports";
 import { sgd, fmtDate, todayISO } from "@/lib/format";
 
@@ -50,6 +51,14 @@ export default async function BalanceSheetPage({
   const asOf = as_of && /^\d{4}-\d{2}-\d{2}$/.test(as_of) ? as_of : todayISO();
   const supabase = await createClient();
   const bs = await getBalanceSheet(supabase, asOf);
+  if (bs.error) {
+    return (
+      <div>
+        <PageHeader title="Balance Sheet" subtitle={`As at ${fmtDate(asOf)}`} />
+        <DbUnavailable detail={bs.error} />
+      </div>
+    );
+  }
   const balanced = Math.abs(bs.totalAssets - (bs.totalLiabilities + bs.totalEquity)) < 0.01;
 
   return (
