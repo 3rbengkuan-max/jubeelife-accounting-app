@@ -1,20 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card } from "@/components/ui";
-import { MonthPicker } from "@/components/PeriodPicker";
+import { RangePicker } from "@/components/PeriodPicker";
 import PrintButton from "@/components/PrintButton";
 import DbUnavailable from "@/components/DbUnavailable";
 import { getCashFlow } from "@/lib/reports";
-import { sgd, monthFromParam } from "@/lib/format";
+import { sgd, rangeFromParams } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function CashFlowPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const { month } = await searchParams;
-  const { start, end, label, value } = monthFromParam(month);
+  const { from, to } = await searchParams;
+  const { start, end, label } = rangeFromParams(from, to);
   const supabase = await createClient();
   const cf = await getCashFlow(supabase, start, end);
   if (cf.error) {
@@ -34,7 +34,7 @@ export default async function CashFlowPage({
         subtitle={`For ${label}`}
         action={
           <div className="flex items-end gap-2">
-            <MonthPicker action="/reports/cash-flow" value={value} />
+            <RangePicker action="/reports/cash-flow" from={start} to={end} />
             <PrintButton />
           </div>
         }

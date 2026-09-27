@@ -7,7 +7,7 @@ const reports = [
   {
     href: "/reports/pnl",
     title: "Profit & Loss",
-    desc: "Income and expenses by account for a selected month, with net profit.",
+    desc: "Income and expenses by account over any date range, with net profit.",
     icon: "📈",
   },
   {
@@ -19,7 +19,7 @@ const reports = [
   {
     href: "/reports/cash-flow",
     title: "Cash Flow",
-    desc: "Cash in and cash out by category for a selected month.",
+    desc: "Cash in and cash out by category over any date range.",
     icon: "💵",
   },
 ];

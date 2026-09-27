@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader, Card } from "@/components/ui";
-import { AsOfPicker } from "@/components/PeriodPicker";
+import { RangePicker } from "@/components/PeriodPicker";
 import PrintButton from "@/components/PrintButton";
 import DbUnavailable from "@/components/DbUnavailable";
 import { getBalanceSheet } from "@/lib/reports";
-import { sgd, fmtDate, todayISO } from "@/lib/format";
+import { sgd, fmtDate, rangeFromParams } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +45,13 @@ function Section({
 export default async function BalanceSheetPage({
   searchParams,
 }: {
-  searchParams: Promise<{ as_of?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; as_of?: string }>;
 }) {
-  const { as_of } = await searchParams;
-  const asOf = as_of && /^\d{4}-\d{2}-\d{2}$/.test(as_of) ? as_of : todayISO();
+  const { from, to, as_of } = await searchParams;
+  // A balance sheet is a snapshot as at a single date, so we use the range's
+  // end date. `as_of` is still honoured for older bookmarked links.
+  const { start, end } = rangeFromParams(from, to ?? as_of);
+  const asOf = end;
   const supabase = await createClient();
   const bs = await getBalanceSheet(supabase, asOf);
   if (bs.error) {
@@ -68,7 +71,7 @@ export default async function BalanceSheetPage({
         subtitle={`As at ${fmtDate(asOf)}`}
         action={
           <div className="flex items-end gap-2">
-            <AsOfPicker action="/reports/balance-sheet" value={asOf} />
+            <RangePicker action="/reports/balance-sheet" from={start} to={asOf} />
             <PrintButton />
           </div>
         }
@@ -111,7 +114,8 @@ export default async function BalanceSheetPage({
             </span>
           </div>
           <p className="text-center text-xs text-slate-400">
-            {balanced ? "✓ Balanced" : "⚠ Not balanced"} · Simplified single-entry
+            {balanced ? "✓ Balanced" : "⚠ Not balanced"} · A balance sheet is a snapshot
+            as at the end date, so only the “To” date affects it. Simplified single-entry
             derivation (v1) — cash basis with open invoices as receivables.
           </p>
         </div>

@@ -76,10 +76,10 @@ export default async function ReconciliationPage({
         <StatCard label="Reconciled total" value={sgd(reconciledNet)} tone="default" hint={`${reconciledCount} of ${txns.length} ticked`} />
         <StatCard label="Still to reconcile" value={sgd(unreconciled)} tone={Math.abs(unreconciled) < 0.01 ? "positive" : "warning"} hint={Math.abs(unreconciled) < 0.01 ? "Fully reconciled ✓" : "Unticked amount"} />
         <Card className="flex flex-col justify-center p-5">
-          <Link href={`/reports/cash-flow?month=${value}`} className="text-sm font-semibold text-[var(--brand)] hover:underline">
+          <Link href={`/reports/cash-flow?from=${start}&to=${end}`} className="text-sm font-semibold text-[var(--brand)] hover:underline">
             View Cash Flow →
           </Link>
-          <Link href={`/reports/pnl?month=${value}`} className="mt-2 text-sm font-semibold text-[var(--brand)] hover:underline">
+          <Link href={`/reports/pnl?from=${start}&to=${end}`} className="mt-2 text-sm font-semibold text-[var(--brand)] hover:underline">
             View P&amp;L →
           </Link>
         </Card>

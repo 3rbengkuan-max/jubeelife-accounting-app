@@ -43,6 +43,23 @@ export function currentMonthISO(): string {
   return new Date().toISOString().slice(0, 7); // YYYY-MM
 }
 
+/**
+ * Parse `from`/`to` date params (YYYY-MM-DD) into an inclusive date range.
+ * Defaults to year-to-date: 1 Jan of the current year → today. If the two
+ * dates are reversed (To before From), they are swapped so the range is valid.
+ */
+export function rangeFromParams(
+  from?: string,
+  to?: string,
+): { start: string; end: string; label: string } {
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const now = new Date();
+  let start = from && iso.test(from) ? from : `${now.getFullYear()}-01-01`;
+  let end = to && iso.test(to) ? to : todayISO();
+  if (start > end) [start, end] = [end, start];
+  return { start, end, label: `${fmtDate(start)} – ${fmtDate(end)}` };
+}
+
 /** Parse a "YYYY-MM" param (or default to current month) into a date range. */
 export function monthFromParam(param?: string): {
   start: string;
