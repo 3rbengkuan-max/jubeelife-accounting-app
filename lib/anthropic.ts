@@ -119,13 +119,16 @@ export async function extractStatementLines(
   }
   instruction += "\n\nReturn them in the required JSON shape.";
 
+  // The `effort` control is supported on Opus/Sonnet/Fable but NOT on Haiku
+  // (it returns a 400 there), so only include it for models that accept it.
+  const supportsEffort = !/haiku/i.test(STATEMENT_AI_MODEL);
+  const format = { type: "json_schema" as const, schema: buildSchema(withAccount) };
+  const output_config = supportsEffort ? { effort: "low" as const, format } : { format };
+
   const response = await client.messages.create({
     model: STATEMENT_AI_MODEL,
     max_tokens: 8000,
-    output_config: {
-      effort: "low",
-      format: { type: "json_schema", schema: buildSchema(withAccount) },
-    },
+    output_config,
     messages: [{ role: "user", content: [fileBlock, { type: "text", text: instruction }] }],
   });
 
