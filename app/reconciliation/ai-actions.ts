@@ -62,7 +62,25 @@ export async function autoMatchStatement(
   try {
     lines = await extractStatementLines(bytes, doc.mime_type ?? "application/pdf", accounts);
   } catch (e) {
-    return { ok: false, error: `AI extraction failed: ${(e as Error).message}` };
+    const msg = (e as Error).message ?? "";
+    if (/pdf/i.test(msg) && /not valid/i.test(msg)) {
+      return {
+        ok: false,
+        error:
+          "This statement looks like a scanned or image-based PDF that the reader can't process. " +
+          "Please upload a CSV or Excel export from your bank instead (most reliable), or a clear " +
+          "photo (JPG/PNG) of the statement.",
+      };
+    }
+    if (/credit balance is too low/i.test(msg)) {
+      return {
+        ok: false,
+        error:
+          "The AI reader has no API credits. Add a little credit in the Anthropic Console " +
+          "(console.anthropic.com → Billing), then try again.",
+      };
+    }
+    return { ok: false, error: `Couldn't read the statement: ${msg}` };
   }
   if (lines === null) {
     return {

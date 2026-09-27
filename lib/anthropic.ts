@@ -138,12 +138,29 @@ export async function extractStatementLines(
   const format = { type: "json_schema" as const, schema: buildSchema(withAccount) };
   const output_config = supportsEffort ? { effort: "low" as const, format } : { format };
 
-  const response = await client.messages.create({
+  const req = {
     model: STATEMENT_AI_MODEL,
     max_tokens: 8000,
     output_config,
     messages: [{ role: "user", content: [fileBlock, { type: "text", text: instruction }] }],
-  });
+  };
+
+  // The API sometimes rejects a valid PDF with a transient "PDF not valid"
+  // error (and can be briefly overloaded), so retry those a couple of times.
+  let response;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      response = await client.messages.create(req as never);
+      break;
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? "";
+      const status = (e as { status?: number })?.status;
+      const transient =
+        /not valid/i.test(msg) || /overloaded/i.test(msg) || status === 429 || (status ?? 0) >= 500;
+      if (!transient || attempt >= 2) throw e;
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    }
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") return [];
