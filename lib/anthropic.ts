@@ -102,11 +102,24 @@ export async function extractStatementLines(
   const fileBlock = contentBlockFor(mime, base64, null);
 
   let instruction =
-    "This is a bank statement. Extract every individual transaction line. " +
-    "For each: the date (YYYY-MM-DD), the description/narrative, the absolute " +
-    "amount as a positive number, and direction ('in' for credits/money received, " +
-    "'out' for debits/money paid out). Ignore opening/closing balances, subtotals, " +
-    "and non-transaction rows.";
+    "This is a bank statement. Extract every individual transaction row.\n\n" +
+    "Bank statements usually have separate money columns — read them carefully:\n" +
+    "• A 'Withdrawal', 'Debit', 'DR', 'Paid out' or 'Money out' column = money LEAVING the " +
+    "account → direction 'out'.\n" +
+    "• A 'Deposit', 'Credit', 'CR', 'Paid in' or 'Money in' column = money ENTERING the " +
+    "account → direction 'in'.\n" +
+    "• The transaction amount is the number in that Withdrawal or Deposit column for the row " +
+    "(as a positive number). Each transaction row has a value in ONE of those two columns.\n" +
+    "• A 'Balance' or 'Running balance' column is the account balance AFTER the transaction " +
+    "(the running cash position). It is NOT a transaction amount and NOT a separate " +
+    "transaction — NEVER use the Balance figure as the amount, and never create a line from a " +
+    "balance value.\n" +
+    "If instead the statement uses a single signed amount column, a negative or " +
+    "(parenthesised) value is 'out' and a positive value is 'in'.\n\n" +
+    "For each transaction row return: date (YYYY-MM-DD), description/narrative, the absolute " +
+    "amount (a positive number, taken from the Withdrawal/Deposit column), and direction. " +
+    "Ignore opening/closing balance rows, brought-forward/carried-forward lines, subtotals, " +
+    "headers, and any non-transaction rows.";
   if (withAccount) {
     const list = accounts!
       .map((a) => `${a.code} — ${a.name} (${a.type})`)
