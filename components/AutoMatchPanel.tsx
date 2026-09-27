@@ -1,17 +1,23 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { autoMatchStatement, type AutoMatchState } from "@/app/reconciliation/ai-actions";
+import {
+  autoMatchStatement,
+  importStatementLines,
+  type AutoMatchState,
+  type ImportState,
+} from "@/app/reconciliation/ai-actions";
 import { sgd, fmtDate } from "@/lib/format";
-import type { DocumentRow } from "@/lib/types";
+import type { DocumentRow, Account } from "@/lib/types";
+import type { StatementLine } from "@/lib/anthropic";
 
-function RunButton({ disabled }: { disabled: boolean }) {
+function RunButton() {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending || disabled}
+      disabled={pending}
       className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-dark)] disabled:opacity-60"
     >
       {pending ? "Reading statement…" : "✨ Auto-read & match"}
@@ -19,13 +25,138 @@ function RunButton({ disabled }: { disabled: boolean }) {
   );
 }
 
+// Interactive list of statement lines that had no matching transaction:
+// pick a category per line and import the selected ones as transactions.
+function ImportUnmatched({
+  lines,
+  accounts,
+}: {
+  lines: StatementLine[];
+  accounts: Account[];
+}) {
+  const incomeAccts = accounts.filter((a) => a.type === "income");
+  const expenseAccts = accounts.filter((a) => a.type === "expense");
+
+  const defaultAcctId = (l: StatementLine) => {
+    const pool = l.direction === "in" ? incomeAccts : expenseAccts;
+    const byCode = l.account_code ? pool.find((a) => a.code === l.account_code) : undefined;
+    return (byCode ?? pool[0])?.id ?? "";
+  };
+
+  const [rows, setRows] = useState(
+    lines.map((l) => ({ line: l, selected: true, accountId: defaultAcctId(l) })),
+  );
+  const [state, formAction, pending] = useActionState<ImportState, FormData>(
+    importStatementLines,
+    undefined,
+  );
+
+  if (state?.ok) {
+    return (
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        ✓ Imported <strong>{state.created}</strong> transaction
+        {state.created === 1 ? "" : "s"} from the statement — they&apos;re now recorded
+        and ticked as reconciled. Re-run Auto-read if you want to refresh the match.
+      </div>
+    );
+  }
+
+  const chosen = rows.filter((r) => r.selected && r.accountId);
+  const payload = JSON.stringify(
+    chosen.map((r) => ({
+      date: r.line.date,
+      description: r.line.description,
+      amount: r.line.amount,
+      direction: r.line.direction,
+      account_id: r.accountId,
+    })),
+  );
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+      <div className="mb-1 font-semibold text-amber-900">
+        On the statement but not recorded ({lines.length})
+      </div>
+      <p className="mb-3 text-xs text-amber-800/80">
+        Review the category (suggested by AI), untick anything you don&apos;t want, then
+        import them as transactions.
+      </p>
+
+      {state && !state.ok && (
+        <div className="mb-2 rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          {state.error}
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        {rows.map((r, i) => {
+          const pool = r.line.direction === "in" ? incomeAccts : expenseAccts;
+          return (
+            <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={r.selected}
+                onChange={(e) =>
+                  setRows((prev) =>
+                    prev.map((x, idx) => (idx === i ? { ...x, selected: e.target.checked } : x)),
+                  )
+                }
+                className="h-4 w-4 accent-[var(--brand)]"
+              />
+              <span className="w-20 shrink-0 text-xs text-amber-800/80">{fmtDate(r.line.date)}</span>
+              <span className="min-w-0 flex-1 truncate text-amber-900">{r.line.description}</span>
+              <span
+                className={`w-20 shrink-0 text-right font-medium ${r.line.direction === "in" ? "text-emerald-700" : "text-rose-700"}`}
+              >
+                {r.line.direction === "in" ? "+" : "−"}
+                {sgd(r.line.amount)}
+              </span>
+              <select
+                value={r.accountId}
+                onChange={(e) =>
+                  setRows((prev) =>
+                    prev.map((x, idx) => (idx === i ? { ...x, accountId: e.target.value } : x)),
+                  )
+                }
+                disabled={!r.selected}
+                className="w-44 shrink-0 rounded border border-amber-300 bg-white px-2 py-1 text-xs disabled:opacity-50"
+              >
+                {pool.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.code} · {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+
+      <form action={formAction} className="mt-3">
+        <input type="hidden" name="lines" value={payload} />
+        <button
+          type="submit"
+          disabled={pending || chosen.length === 0}
+          className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-dark)] disabled:opacity-50"
+        >
+          {pending
+            ? "Importing…"
+            : `Import ${chosen.length} transaction${chosen.length === 1 ? "" : "s"}`}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function AutoMatchPanel({
   statements,
+  accounts,
   start,
   end,
   monthLabel,
 }: {
   statements: DocumentRow[];
+  accounts: Account[];
   start: string;
   end: string;
   monthLabel: string;
@@ -41,8 +172,8 @@ export default function AutoMatchPanel({
         <div>
           <h2 className="font-semibold text-violet-900">✨ Auto-read statement</h2>
           <p className="mt-1 text-sm text-violet-700/80">
-            Let AI read an uploaded bank statement (PDF or photo) and tick off the
-            matching transactions for {monthLabel} automatically.
+            Let AI read an uploaded bank statement (PDF or photo), tick off the matching
+            transactions for {monthLabel}, and import any that aren&apos;t recorded yet.
           </p>
         </div>
       </div>
@@ -71,7 +202,7 @@ export default function AutoMatchPanel({
               ))}
             </select>
           </div>
-          <RunButton disabled={false} />
+          <RunButton />
         </form>
       )}
 
@@ -90,25 +221,11 @@ export default function AutoMatchPanel({
           </div>
 
           {state.unmatchedLines.length > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-              <div className="mb-1 font-semibold text-amber-800">
-                On the statement but not recorded ({state.unmatchedLines.length}) — you may
-                need to add these:
-              </div>
-              <ul className="space-y-0.5 text-amber-800/90">
-                {state.unmatchedLines.slice(0, 12).map((l, i) => (
-                  <li key={i} className="flex justify-between gap-3">
-                    <span className="truncate">
-                      {fmtDate(l.date)} · {l.description}
-                    </span>
-                    <span className={l.direction === "in" ? "text-emerald-700" : "text-rose-700"}>
-                      {l.direction === "in" ? "+" : "−"}
-                      {sgd(l.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ImportUnmatched
+              key={state.unmatchedLines.map((l) => `${l.date}|${l.amount}|${l.description}`).join(";")}
+              lines={state.unmatchedLines}
+              accounts={accounts}
+            />
           )}
 
           {state.unmatchedTxns.length > 0 && (

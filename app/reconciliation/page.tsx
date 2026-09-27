@@ -7,7 +7,7 @@ import AutoMatchPanel from "@/components/AutoMatchPanel";
 import DbUnavailable from "@/components/DbUnavailable";
 import { dbError } from "@/lib/db";
 import { sgd, fmtDate, num, monthFromParam } from "@/lib/format";
-import type { Transaction, DocumentRow } from "@/lib/types";
+import type { Transaction, DocumentRow, Account } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 // Allow the AI statement read to run up to 60s (Vercel serverless limit).
@@ -26,7 +26,7 @@ export default async function ReconciliationPage({
   const { start, end, label, value } = monthFromParam(month);
   const supabase = await createClient();
 
-  const [txRes, stmtRes] = await Promise.all([
+  const [txRes, stmtRes, acctRes] = await Promise.all([
     supabase
       .from("transactions")
       .select("*, chart_of_accounts(code,name), documents(storage_path,file_name)")
@@ -38,9 +38,10 @@ export default async function ReconciliationPage({
       .select("*")
       .eq("doc_type", "bank_statement")
       .order("created_at", { ascending: false }),
+    supabase.from("chart_of_accounts").select("*").order("code"),
   ]);
 
-  const dbErr = dbError(txRes, stmtRes);
+  const dbErr = dbError(txRes, stmtRes, acctRes);
   if (dbErr) {
     return (
       <div>
@@ -52,6 +53,7 @@ export default async function ReconciliationPage({
 
   const txns = (txRes.data as unknown as Transaction[]) ?? [];
   const statements = (stmtRes.data as DocumentRow[]) ?? [];
+  const accounts = (acctRes.data as Account[]) ?? [];
 
   const signed = (t: Transaction) =>
     (t.type === "income" ? 1 : -1) * num(t.amount);
@@ -119,6 +121,7 @@ export default async function ReconciliationPage({
       <div className="mb-6">
         <AutoMatchPanel
           statements={statements}
+          accounts={accounts}
           start={start}
           end={end}
           monthLabel={label}

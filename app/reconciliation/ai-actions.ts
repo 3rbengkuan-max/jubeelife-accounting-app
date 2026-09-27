@@ -51,9 +51,16 @@ export async function autoMatchStatement(
   }
   const bytes = new Uint8Array(await blob.arrayBuffer());
 
+  // Chart of accounts, so the AI can suggest a category per line.
+  const { data: acctData } = await supabase
+    .from("chart_of_accounts")
+    .select("code, name, type")
+    .order("code");
+  const accounts = (acctData as { code: string; name: string; type: string }[]) ?? [];
+
   let lines: StatementLine[] | null;
   try {
-    lines = await extractStatementLines(bytes, doc.mime_type ?? "application/pdf");
+    lines = await extractStatementLines(bytes, doc.mime_type ?? "application/pdf", accounts);
   } catch (e) {
     return { ok: false, error: `AI extraction failed: ${(e as Error).message}` };
   }
@@ -122,4 +129,60 @@ export async function autoMatchStatement(
     unmatchedLines,
     unmatchedTxns,
   };
+}
+
+// ── Import selected statement lines as new transactions ──────────────────────
+
+export type ImportState =
+  | { ok: true; created: number }
+  | { ok: false; error: string }
+  | undefined;
+
+interface ImportLine {
+  date: string;
+  description: string;
+  amount: number;
+  direction: "in" | "out";
+  account_id: string;
+}
+
+export async function importStatementLines(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  let items: ImportLine[] = [];
+  try {
+    items = JSON.parse(formData.get("lines")?.toString() || "[]");
+  } catch {
+    return { ok: false, error: "Could not read the selected lines." };
+  }
+  items = items.filter(
+    (i) => i.account_id && Number(i.amount) > 0 && (i.direction === "in" || i.direction === "out"),
+  );
+  if (items.length === 0) {
+    return { ok: false, error: "Select at least one line and a category for it." };
+  }
+
+  const supabase = await createClient();
+  const rows = items.map((i) => ({
+    date: i.date,
+    type: i.direction === "in" ? "income" : "expense",
+    account_id: i.account_id,
+    description: i.description || null,
+    amount: Number(i.amount),
+    gst_amount: 0,
+    gst_rate: 0,
+    reconciled: true, // it came from the statement, so it's already reconciled
+  }));
+
+  const { error } = await supabase.from("transactions").insert(rows);
+  if (error) {
+    return { ok: false, error: `Could not import: ${error.message}` };
+  }
+
+  revalidatePath("/reconciliation");
+  revalidatePath("/transactions");
+  revalidatePath("/reports");
+  revalidatePath("/");
+  return { ok: true, created: rows.length };
 }
