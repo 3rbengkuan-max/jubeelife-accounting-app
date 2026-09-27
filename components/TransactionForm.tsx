@@ -3,11 +3,15 @@
 import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { createTransaction, type ActionState } from "@/app/transactions/actions";
+import {
+  createTransaction,
+  updateTransaction,
+  type ActionState,
+} from "@/app/transactions/actions";
 import { sgd } from "@/lib/format";
-import type { Account, Property, Tenancy, Unit } from "@/lib/types";
+import type { Account, Property, Tenancy, Unit, Transaction } from "@/lib/types";
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -15,7 +19,7 @@ function SubmitButton() {
       disabled={pending}
       className="rounded-lg bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--brand-dark)] disabled:opacity-60"
     >
-      {pending ? "Saving…" : "Save transaction"}
+      {pending ? "Saving…" : label}
     </button>
   );
 }
@@ -30,21 +34,24 @@ export default function TransactionForm({
   units,
   tenancies,
   defaultDate,
+  initial,
 }: {
   accounts: Account[];
   properties: Property[];
   units: Unit[];
   tenancies: Tenancy[];
   defaultDate: string;
+  initial?: Transaction;
 }) {
+  const isEdit = !!initial;
   const [state, formAction] = useActionState<ActionState, FormData>(
-    createTransaction,
+    isEdit ? updateTransaction : createTransaction,
     undefined,
   );
-  const [type, setType] = useState<"income" | "expense">("income");
-  const [propertyId, setPropertyId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [gstRate, setGstRate] = useState("0");
+  const [type, setType] = useState<"income" | "expense">(initial?.type ?? "income");
+  const [propertyId, setPropertyId] = useState(initial?.property_id ?? "");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [gstRate, setGstRate] = useState(initial ? String(initial.gst_rate) : "0");
 
   const filteredAccounts = accounts.filter((a) => a.type === type);
   const filteredUnits = propertyId
@@ -60,6 +67,7 @@ export default function TransactionForm({
 
   return (
     <form action={formAction} className="space-y-5">
+      {isEdit && <input type="hidden" name="id" value={initial!.id} />}
       {state?.error && (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {state.error}
@@ -99,7 +107,7 @@ export default function TransactionForm({
             name="date"
             type="date"
             required
-            defaultValue={defaultDate}
+            defaultValue={initial?.date ?? defaultDate}
             className={inputCls}
           />
         </div>
@@ -108,7 +116,13 @@ export default function TransactionForm({
           <label className={labelCls} htmlFor="account_id">
             Account (category) *
           </label>
-          <select id="account_id" name="account_id" required className={inputCls}>
+          <select
+            id="account_id"
+            name="account_id"
+            required
+            defaultValue={initial?.account_id ?? ""}
+            className={inputCls}
+          >
             <option value="">Select account…</option>
             {filteredAccounts.map((a) => (
               <option key={a.id} value={a.id}>
@@ -160,7 +174,12 @@ export default function TransactionForm({
           <label className={labelCls} htmlFor="unit_id">
             Unit
           </label>
-          <select id="unit_id" name="unit_id" className={inputCls}>
+          <select
+            id="unit_id"
+            name="unit_id"
+            defaultValue={initial?.unit_id ?? ""}
+            className={inputCls}
+          >
             <option value="">—</option>
             {filteredUnits.map((u) => (
               <option key={u.id} value={u.id}>
@@ -174,7 +193,12 @@ export default function TransactionForm({
           <label className={labelCls} htmlFor="tenancy_id">
             Tenancy (optional)
           </label>
-          <select id="tenancy_id" name="tenancy_id" className={inputCls}>
+          <select
+            id="tenancy_id"
+            name="tenancy_id"
+            defaultValue={initial?.tenancy_id ?? ""}
+            className={inputCls}
+          >
             <option value="">—</option>
             {tenancies.map((t) => (
               <option key={t.id} value={t.id}>
@@ -210,6 +234,7 @@ export default function TransactionForm({
           id="description"
           name="description"
           type="text"
+          defaultValue={initial?.description ?? ""}
           placeholder="e.g. October rent — 12-03A"
           className={inputCls}
         />
@@ -218,7 +243,7 @@ export default function TransactionForm({
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label className={labelCls} htmlFor="document">
-            Attach document (receipt / invoice)
+            {isEdit ? "Attach a new document (optional)" : "Attach document (receipt / invoice)"}
           </label>
           <input
             id="document"
@@ -255,7 +280,7 @@ export default function TransactionForm({
       </div>
 
       <div className="flex items-center gap-3">
-        <SubmitButton />
+        <SubmitButton label={isEdit ? "Save changes" : "Save transaction"} />
         <Link
           href="/transactions"
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
